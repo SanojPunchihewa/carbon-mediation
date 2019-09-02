@@ -16,20 +16,36 @@
  */
 package org.wso2.carbon.mediation.transport.handlers.requestprocessors.swagger.format;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import org.apache.axis2.AxisFault;
 import org.apache.axis2.context.ConfigurationContext;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.synapse.rest.API;
 import org.wso2.carbon.core.transports.CarbonHttpRequest;
 import org.wso2.carbon.core.transports.CarbonHttpResponse;
 import org.wso2.carbon.core.transports.HttpGetRequestProcessor;
-import org.wso2.carbon.mediation.transport.handlers.requestprocessors.swagger.GenericApiObjectDefinition;
-import org.wso2.carbon.mediation.transport.handlers.requestprocessors.swagger.SwaggerConstants;
+import org.wso2.carbon.integrator.core.json.utils.GSONUtils;
+import org.wso2.carbon.integrator.core.rest.api.swagger.GenericApiObjectDefinition;
+import org.wso2.carbon.integrator.core.rest.api.swagger.SwaggerConstants;
+import org.wso2.carbon.registry.core.exceptions.RegistryException;
 import org.yaml.snakeyaml.Yaml;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Provides Swagger definition for the API in YAML format.
  */
 public class SwaggerYamlProcessor extends SwaggerGenerator implements HttpGetRequestProcessor {
+
+    private static final Log log = LogFactory.getLog(SwaggerYamlProcessor.class);
 
     /**
      * Process incoming GET request and update the response with the swagger definition for the requested API.
@@ -43,12 +59,25 @@ public class SwaggerYamlProcessor extends SwaggerGenerator implements HttpGetReq
                         ConfigurationContext configurationContext) throws AxisFault {
 
         API api = getAPIFromSynapseConfig(request);
-
         if (api == null) {
             handleException(request.getRequestURI());
         } else {
-            Yaml yamlDefinition = new Yaml();
-            String responseString = yamlDefinition.dumpAsMap(new GenericApiObjectDefinition(api).getDefinitionMap());
+            //Retrieve from registry
+            String responseString;
+            try {
+                Yaml yamlDefinition = new Yaml();
+                String defFromRegistry = retrieveFromRegistry(api, request);
+                if (defFromRegistry != null) {
+                    JsonParser jsonParser = new JsonParser();
+                    responseString =
+                            yamlDefinition.dumpAsMap(GSONUtils.gsonJsonObjectToMap(jsonParser.parse(defFromRegistry)));
+                } else {
+                    responseString = yamlDefinition.dumpAsMap(new GenericApiObjectDefinition(api).getDefinitionMap());
+                }
+            } catch (RegistryException e) {
+                throw new AxisFault("Error occurred while retrieving swagger definition from registry", e);
+            }
+
             updateResponse(response, responseString, SwaggerConstants.CONTENT_TYPE_YAML);
         }
     }
