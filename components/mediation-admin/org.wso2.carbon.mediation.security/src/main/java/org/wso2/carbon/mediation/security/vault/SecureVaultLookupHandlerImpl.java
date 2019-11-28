@@ -69,8 +69,9 @@ public class SecureVaultLookupHandlerImpl implements SecureVaultLookupHandler {
 	 */
 	private void initRegistryRepo() {
 		 //	Here, the secure vault resource is created, if it does not exist in the registry.
-		if (!registry.isResourceExists(SecureVaultConstants.CONNECTOR_SECURE_VAULT_CONFIG_REPOSITORY)) {
+		if (registry != null && !registry.isResourceExists(SecureVaultConstants.CONNECTOR_SECURE_VAULT_CONFIG_REPOSITORY)) {
 			registry.newResource(SecureVaultConstants.CONNECTOR_SECURE_VAULT_CONFIG_REPOSITORY, true);
+
 		}
 	}
 
