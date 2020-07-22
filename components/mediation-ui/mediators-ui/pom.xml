@@ -85,6 +85,7 @@
         <module>org.wso2.carbon.mediator.foreach.ui</module>
         <module>org.wso2.carbon.mediator.publishevent.ui</module>
         <module>org.wso2.carbon.mediator.jsontransform.ui</module>
+        <module>org.wso2.carbon.mediator.ntlmcallout.ui</module>
     </modules>
 
 </project>
