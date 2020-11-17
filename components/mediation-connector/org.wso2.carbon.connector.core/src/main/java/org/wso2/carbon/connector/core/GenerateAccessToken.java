@@ -18,11 +18,9 @@
 
 package org.wso2.carbon.connector.core;
 
-import org.apache.axiom.om.OMText;
 import org.apache.commons.lang.StringUtils;
 import org.apache.synapse.MessageContext;
 import org.apache.synapse.SynapseLog;
-import org.apache.synapse.config.Entry;
 import org.apache.synapse.registry.Registry;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -30,22 +28,21 @@ import org.wso2.carbon.connector.core.util.ConnectorUtils;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Properties;
 import java.util.Set;
 
 /**
- * This class can be used by connectors to refresh OAuth 2.0 access tokens by setting the following mandatory
- * properties in message context: uri.var.hostName, uri.var.refreshToken. By default this class constructs the refresh
- * url in the format "{uri.var.hostName}/services/oauth2/token?grant_type=refresh_token&client_id=
- * {uri.var.clientId}&client_secret={uri.var.clientSecret}&refresh_token={uri.var.refreshToken}&format=json".
- * Here client_id and client_secret are optional. If you want to use a different url please set the custom url to
- * uri.var.customRefreshUrl in message context prior to using this class mediator.
- * <p>
- * After refresh call this will set the uri.var.accessToken, and uri.var.apiUrl (e.g: for Salesforce) in the message context to be used by
+ * This class can be used by connectors to generate OAuth 2.0 access tokens by setting the following mandatory
+ * property in message context: uri.var.hostName. By default this class constructs the token generation
+ * url in the format "{uri.var.tokenEndpointUrl}?grant_type=client_credentials&client_id=
+ * {uri.var.clientId}&client_secret={uri.var.clientSecret}&format=json".
+ * Here client_id and client_secret are mandatory. If you want to use a different url please set the custom url to
+ * uri.var.authorizationUrl in message context prior to using this class mediator.
+ *
+ * After token generation call this will set the uri.var.accessToken in the message context to be used by
  * subsequent calls.
  */
-public class RefreshAccessToken extends AbstractConnector {
-    protected static final String PROPERTY_PREFIX = "uri.var.";
+public class GenerateAccessToken extends AbstractConnector {
+    private static final String PROPERTY_PREFIX = "uri.var.";
 
     @Override
     public void connect(MessageContext messageContext) throws ConnectException {
@@ -55,48 +52,18 @@ public class RefreshAccessToken extends AbstractConnector {
         if (StringUtils.isEmpty(accessTokenRegistryPath)) {
             throw new ConnectException("Access token registry path not provided for access token storage and reuse.");
         }
-        handleRefresh(messageContext, registry, accessTokenRegistryPath);
+        handleTokenGeneration(messageContext, registry, accessTokenRegistryPath);
     }
 
-    /**
-     * Check and set access token to message context.
-     *
-     * @param messageContext          Message Context involved
-     * @param registry                Registry instance
-     * @param accessTokenRegistryPath Registry path where access token is stored
-     * @return returns a boolean. true - token refresh is needed. false - token refresh is not needed
-     */
-    protected boolean reuseSavedAccessToken(MessageContext messageContext, Registry registry,
-                                            String accessTokenRegistryPath) {
-        String savedAccessToken = null;
-        Entry propEntry = messageContext.getConfiguration().getEntryDefinition(accessTokenRegistryPath);
-        if (propEntry == null) {
-            propEntry = new Entry();
-            propEntry.setType(Entry.REMOTE_ENTRY);
-            propEntry.setKey(accessTokenRegistryPath);
-        }
-        registry.getResource(propEntry, new Properties());
-        if (propEntry.getValue() != null) {
-            if (propEntry.getValue() instanceof OMText) {
-                savedAccessToken = ((OMText) propEntry.getValue()).getText();
-            } else {
-                savedAccessToken = propEntry.getValue().toString();
-            }
-            messageContext.setProperty(PROPERTY_PREFIX + "accessToken", savedAccessToken);
-            return false;
-        } else {
-            return true;
-        }
-    }
-
-    protected void handleRefresh(MessageContext messageContext, Registry registry, String accessTokenRegistryPath)
+    private void handleTokenGeneration(MessageContext messageContext, Registry registry,
+                                       String accessTokenRegistryPath)
             throws ConnectException {
         SynapseLog synLog = getLog(messageContext);
         Set propertyKeySet = messageContext.getPropertyKeySet();
         propertyKeySet.remove("Accept-Encoding");
 
         if (synLog.isTraceOrDebugEnabled()) {
-            synLog.traceOrDebug("Start : Refresh Access Token mediator.");
+            synLog.traceOrDebug("Start : Generate Access Token mediator.");
 
             if (synLog.isTraceTraceEnabled()) {
                 synLog.traceTrace("Message : " + messageContext.getEnvelope());
@@ -109,7 +76,7 @@ public class RefreshAccessToken extends AbstractConnector {
             extractAndSetPropertyAndRegistryResource(messageContext, jsonResponse, registry, accessTokenRegistryPath);
         } catch (IOException e) {
             synLog.error(e);
-            throw new ConnectException(e, "Error while executing POST request to refresh the access token");
+            throw new ConnectException(e, "Error while executing POST request to generate the access token");
         } catch (JSONException e) {
             synLog.error(e);
             throw new ConnectException(e, "Error while processing the response message");
@@ -119,14 +86,15 @@ public class RefreshAccessToken extends AbstractConnector {
         }
     }
 
-    protected String getPostData(MessageContext messageContext) {
-        String customRefreshUrl = (String) messageContext.getProperty(PROPERTY_PREFIX + "customRefreshUrl");
+    private String getPostData(MessageContext messageContext) {
+        String customTokenGenerationUrl = (String) messageContext.getProperty(PROPERTY_PREFIX
+                + "customTokenGenerationUrl");
 
-        if (StringUtils.isNotEmpty(customRefreshUrl)) {
-            return customRefreshUrl;
+        if (StringUtils.isNotEmpty(customTokenGenerationUrl)) {
+            return customTokenGenerationUrl;
         } else {
             StringBuilder urlStringBuilder = new StringBuilder();
-            urlStringBuilder.append("grant_type=refresh_token");
+            urlStringBuilder.append("grant_type=client_credentials");
             String clientId = (String) messageContext.getProperty(PROPERTY_PREFIX + "clientId");
             if (StringUtils.isNotEmpty(clientId)) {
                 urlStringBuilder.append("&client_id=").append(clientId);
@@ -135,33 +103,29 @@ public class RefreshAccessToken extends AbstractConnector {
             if (StringUtils.isNotEmpty(clientSecret)) {
                 urlStringBuilder.append("&client_secret=").append(clientSecret);
             }
-            urlStringBuilder.append("&refresh_token=").append(messageContext.getProperty(PROPERTY_PREFIX +
-                    "refreshToken"));
+            String scope = (String) messageContext.getProperty(PROPERTY_PREFIX + "scope");
+            if (StringUtils.isNotEmpty(scope)) {
+                urlStringBuilder.append("&scope=").append(scope);
+            }
             urlStringBuilder.append("&format=json");
             return urlStringBuilder.toString();
         }
     }
 
-    protected void extractAndSetPropertyAndRegistryResource(MessageContext messageContext,
-                                                            String jsonResponse,
-                                                            Registry registry, String accessTokenRegistryPath)
+    private void extractAndSetPropertyAndRegistryResource(MessageContext messageContext,
+                                                          String jsonResponse,
+                                                          Registry registry, String accessTokenRegistryPath)
             throws IOException, ConnectException, JSONException {
         JSONObject jsonObject = new JSONObject(jsonResponse);
 
         String accessToken = jsonObject.getString("access_token");
         messageContext.setProperty(PROPERTY_PREFIX + "accessToken", accessToken);
 
-        if (!jsonObject.isNull("instance_url")) {
-            String instanceUrl = jsonObject.getString("instance_url");
-            messageContext.setProperty(PROPERTY_PREFIX + "apiUrl", instanceUrl);
-        }
-
         String systemTime = Long.toString(System.currentTimeMillis());
 
-        if (StringUtils.isNotEmpty(accessToken)) {
+        if(StringUtils.isNotEmpty(accessToken)) {
             registry.newNonEmptyResource(accessTokenRegistryPath, false, "text/plain", systemTime, "timestamp");
             registry.updateResource(accessTokenRegistryPath, accessToken);
         }
     }
 }
-
