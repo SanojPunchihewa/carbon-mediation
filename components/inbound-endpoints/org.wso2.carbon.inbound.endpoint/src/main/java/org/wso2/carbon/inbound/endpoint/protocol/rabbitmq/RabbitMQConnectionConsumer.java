@@ -149,19 +149,6 @@ public class RabbitMQConnectionConsumer {
         }
 
         while (isActive()) {
-            try {
-                if (!channel.isOpen()) {
-                    channel = queueingConsumer.getChannel();
-                }
-                channel.txSelect();
-            } catch (IOException e) {
-                log.error("Error while starting transaction", e);
-                continue;
-            }
-
-            boolean successful = false;
-            boolean mediationError = false;
-
             RabbitMQMessage message = null;
             try {
                 message = getConsumerDelivery(queueingConsumer);
@@ -172,30 +159,29 @@ public class RabbitMQConnectionConsumer {
 
             if (message != null) {
                 idle = false;
+                RabbitMQAckStates ackState = RabbitMQAckStates.REJECT_AND_REQUEUE;
+                boolean mediationError = false;
                 try {
-                    successful = injectHandler.invoke(message, inboundName);
+                    ackState = injectHandler.invokeAndReturnAckState(message, inboundName);
                 } catch (Exception e) {         //we need to handle any exception upon injecting to mediation
-                    successful = false;
+                    ackState = RabbitMQAckStates.REJECT_AND_REQUEUE;
                     mediationError = true;
                     log.error("Error while mediating message", e);
                 } finally {
-                    if (successful) {
-                        try {
-                            if (!autoAck) {
+                    if (!autoAck) {
+                        if (ackState == RabbitMQAckStates.ACK) {
+                            try {
                                 channel.basicAck(message.getDeliveryTag(), false);
+                            } catch (IOException e) {
+                                log.error("Error while sending an ack to the message", e);
                             }
-                            channel.txCommit();
-                        } catch (IOException e) {
-                            log.error("Error while committing transaction", e);
-                        }
-                    } else {
-                        try {
-                            channel.txRollback();
-                            // According to the spec, rollback doesn't automatically redeliver unacked messages.
-                            // We need to call recover explicitly.
-                            channel.basicRecover();
-                        } catch (IOException e) {
-                            log.error("Error while trying to roll back transaction", e);
+                        } else {
+                            try {
+                                channel.basicReject(message.getDeliveryTag(),
+                                        ackState == RabbitMQAckStates.REJECT_AND_REQUEUE);
+                            } catch (IOException e) {
+                                log.error("Error while rejecting the unacked message", e);
+                            }
                         }
                     }
 
@@ -413,4 +399,10 @@ public class RabbitMQConnectionConsumer {
         throw new RabbitMQException(msg, e);
     }
 
+}
+
+enum RabbitMQAckStates {
+    ACK,
+    REJECT,
+    REJECT_AND_REQUEUE
 }
