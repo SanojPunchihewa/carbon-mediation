@@ -27,6 +27,7 @@ import com.rabbitmq.client.QueueingConsumer;
 
 import org.apache.axiom.om.OMException;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -49,6 +50,7 @@ public class RabbitMQConnectionConsumer {
 
     private volatile int workerState = STATE_STOPPED;
     private String inboundName;
+    private String requeueDelayStringValue;
     private Connection connection = null;
     private Channel channel = null;
     private boolean autoAck = false;
@@ -177,6 +179,15 @@ public class RabbitMQConnectionConsumer {
                             }
                         } else {
                             try {
+                                if (ackState == RabbitMQAckStates.REJECT_AND_REQUEUE
+                                        && requeueDelayStringValue != null) {
+                                    long requeueDelay = NumberUtils.toLong(requeueDelayStringValue);
+                                    try {
+                                        Thread.sleep(requeueDelay);
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                    }
+                                }
                                 channel.basicReject(message.getDeliveryTag(),
                                         ackState == RabbitMQAckStates.REJECT_AND_REQUEUE);
                             } catch (IOException e) {
@@ -218,6 +229,9 @@ public class RabbitMQConnectionConsumer {
         queueName = rabbitMQProperties.getProperty(RabbitMQConstants.QUEUE_NAME);
         routeKey = rabbitMQProperties.getProperty(RabbitMQConstants.QUEUE_ROUTING_KEY);
         exchangeName = rabbitMQProperties.getProperty(RabbitMQConstants.EXCHANGE_NAME);
+        // get requeue delay
+        requeueDelayStringValue = rabbitMQProperties.getProperty(RabbitMQConstants.MESSAGE_REQUEUE_DELAY);
+
 
         String autoAckStringValue = rabbitMQProperties.getProperty(RabbitMQConstants.QUEUE_AUTO_ACK);
         if (autoAckStringValue != null) {
