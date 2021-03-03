@@ -17,7 +17,7 @@
     <parent>
         <groupId>org.wso2.carbon.mediation</groupId>
         <artifactId>mediators-ui</artifactId>
-        <version>4.6.150.2-SNAPSHOT</version>
+        <version>4.6.150.2</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
@@ -25,7 +25,7 @@
     <packaging>bundle</packaging>
     <name>WSO2 Carbon - DBLookup Mediator UI</name>
     <url>http://wso2.org</url>
-    <version>4.6.150.2-SNAPSHOT</version>
+    <version>4.6.150.2</version>
 
     <build>
         <plugins>
