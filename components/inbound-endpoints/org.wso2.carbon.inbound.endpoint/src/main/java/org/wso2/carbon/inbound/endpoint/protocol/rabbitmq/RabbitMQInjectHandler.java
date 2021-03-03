@@ -57,13 +57,26 @@ public class RabbitMQInjectHandler {
     }
 
     /**
+     * @deprecated
      * Determine the message builder to use, set the message payload to the message context and
      * inject the message.
-     * @param inboundName 
+     * @param message       RabbitMQ message dequeued
+     * @param inboundName   Inbound Name
+     * @return              Returns true if the invocation was successful
      */
     public boolean invoke(RabbitMQMessage message, String inboundName) {
+        return invokeAndReturnAckState(message, inboundName) == RabbitMQAckStates.ACK ? true : false;
+    }
 
-        boolean success = true;
+    /**
+     * Determine the message builder to use, set the message payload to the message context and
+     * inject the message.
+     *
+     * @param message                    RabbitMQ message consumed
+     * @param inboundName                Inbound Name
+     * @return Whether message should be Acked/Rejected/Requeue
+     */
+    public RabbitMQAckStates invokeAndReturnAckState(RabbitMQMessage message, String inboundName) {
         org.apache.synapse.MessageContext msgCtx = createMessageContext();
         log.debug("Processed RabbitMQ Message ");
         MessageContext axis2MsgCtx = ((org.apache.synapse.core.axis2.Axis2MessageContext) msgCtx)
@@ -75,7 +88,7 @@ public class RabbitMQInjectHandler {
         } else {
             msgCtx.setProperty(RabbitMQConstants.CORRELATION_ID, message.getMessageId());
         }
-
+        axis2MsgCtx.setProperty(MessageContext.TRANSPORT_HEADERS, RabbitMQUtils.getTransportHeaders(message));
         String contentType = message.getContentType();
         Builder builder = null;
         if (contentType == null) {
@@ -125,7 +138,7 @@ public class RabbitMQInjectHandler {
 
         if (injectingSeq == null || injectingSeq.equals("")) {
             log.error("Sequence name not specified. Sequence : " + injectingSeq);
-            success = false;
+            return RabbitMQAckStates.REJECT;
         }
         SequenceMediator seq = (SequenceMediator) synapseEnvironment
                 .getSynapseConfiguration().getSequence(injectingSeq);        
@@ -145,14 +158,32 @@ public class RabbitMQInjectHandler {
             log.error("Sequence: " + injectingSeq + " not found");
         }
 
-        Object rollbackProperty = msgCtx.getProperty(RabbitMQConstants.SET_ROLLBACK_ONLY);
-        if (rollbackProperty != null && (rollbackProperty instanceof Boolean && ((Boolean) rollbackProperty))
-                || (rollbackProperty instanceof String && Boolean.valueOf((String) rollbackProperty))) {
-            success = false;
+        if (readMessageCtxProperty(msgCtx, RabbitMQConstants.SET_ROLLBACK_ONLY, false)) {
+            if (readMessageCtxProperty(msgCtx, RabbitMQConstants.SET_REQUEUE_ON_ROLLBACK, true)) {
+                return RabbitMQAckStates.REJECT_AND_REQUEUE;
+            } else {
+                return RabbitMQAckStates.REJECT;
+            }
         }
 
-        return success;
+        return RabbitMQAckStates.ACK;
     }
+
+    private boolean readMessageCtxProperty(org.apache.synapse.MessageContext msgCtx, String propertyName,
+                                           boolean defaultValue) {
+        Object propertyObj = msgCtx.getProperty(propertyName);
+        if (propertyObj != null) {
+            if ((propertyObj instanceof Boolean && ((Boolean) propertyObj))
+                    || (propertyObj instanceof String && "true".equals(propertyObj))) {
+                return true;
+            }
+            if (propertyObj instanceof Boolean || propertyObj instanceof String && "false".equals(propertyObj)) {
+                return false;
+            }
+        }
+        return defaultValue;
+    }
+
 
     /**
      * Create the initial message context for rabbitmq
