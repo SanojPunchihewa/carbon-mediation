@@ -1,6 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=ISO-8859-1" pageEncoding="ISO-8859-1"%>
 <%--
-  ~  Copyright (c) 2020, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+  ~  Copyright (c) 2021, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
   ~
   ~  Licensed under the Apache License, Version 2.0 (the "License");
   ~  you may not use this file except in compliance with the License.
