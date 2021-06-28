@@ -16,6 +16,7 @@
 
 package org.wso2.carbon.mediation.dependency.mgt;
 
+import org.apache.synapse.mediators.builtin.NTLMMediator;
 import org.wso2.carbon.mediation.dependency.mgt.resolvers.*;
 import org.wso2.carbon.mediators.router.impl.RouterMediator;
 import org.apache.synapse.mediators.builtin.SendMediator;
@@ -54,6 +55,7 @@ public class DependencyResolverFactory {
         resolversMap.put(ValidateMediator.class.getName(), new ValidateMediatorResolver());
         resolversMap.put(XQueryMediator.class.getName(), new XQueryMediatorResolver());
         resolversMap.put(XSLTMediator.class.getName(), new XSLTMediatorResolver());
+        resolversMap.put(NTLMMediator.class.getName(), new NTLMMediatorResolver());
     }
 
     public static DependencyResolverFactory getInstance() {
