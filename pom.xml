@@ -1448,6 +1448,11 @@
             </dependency>
             <dependency>
                 <groupId>org.wso2.carbon.mediation</groupId>
+                <artifactId>org.wso2.carbon.mediator.ntlmcallout.ui</artifactId>
+                <version>${carbon.mediation.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.wso2.carbon.mediation</groupId>
                 <artifactId>org.wso2.carbon.mediator.throttle.ui</artifactId>
                 <version>${carbon.mediation.version}</version>
             </dependency>
