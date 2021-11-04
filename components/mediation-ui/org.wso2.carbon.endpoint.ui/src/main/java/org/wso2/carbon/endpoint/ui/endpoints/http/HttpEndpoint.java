@@ -610,6 +610,7 @@ public class HttpEndpoint extends Endpoint {
                 setClientSecret(handler.getClientSecret());
                 setRefreshToken(handler.getRefreshToken());
                 setTokenURL(handler.getTokenUrl());
+                setAuthMode(handler.getAuthMode());
                 setRequestParametersMap(handler.getRequestParametersMap());
             } else if (((OAuthConfiguredHTTPEndpoint) httpEndpoint)
                     .getOauthHandler() instanceof ClientCredentialsHandler) {
@@ -629,6 +630,7 @@ public class HttpEndpoint extends Endpoint {
                 setPassword(handler.getPassword());
                 setUsername(handler.getUsername());
                 setTokenURL(handler.getTokenUrl());
+                setAuthMode(handler.getAuthMode());
                 setRequestParametersMap(handler.getRequestParametersMap());
             }
         }
