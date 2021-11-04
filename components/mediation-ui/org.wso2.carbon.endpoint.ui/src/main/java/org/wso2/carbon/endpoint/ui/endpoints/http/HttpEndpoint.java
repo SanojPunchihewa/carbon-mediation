@@ -68,6 +68,7 @@ public class HttpEndpoint extends Endpoint {
     // oauth related configs
     private String clientId;
     private String clientSecret;
+    private String authMode;
     private String refreshToken;
     private String tokenURL;
     private String username;
@@ -412,7 +413,8 @@ public class HttpEndpoint extends Endpoint {
             authentication.addChild(oauth);
             if (isPasswordGrant()) {
                 OMElement passwordCredentials = fac.createOMElement(OAuthConstants.PASSWORD_CREDENTIALS, synNS);
-                serializeOAuthCommonParameters(passwordCredentials, getClientId(), getClientSecret(), getTokenURL());
+                serializeOAuthCommonParameters(passwordCredentials, getClientId(), getClientSecret(), getTokenURL(),
+                        null);
                 OMElement username = fac.createOMElement(OAuthConstants.OAUTH_USERNAME, synNS);
                 username.setText(getUsername());
                 passwordCredentials.addChild(username);
@@ -423,7 +425,8 @@ public class HttpEndpoint extends Endpoint {
                 oauth.addChild(passwordCredentials);
             } else if (isAuthorizationCodeGrant()) {
                 OMElement authCode = fac.createOMElement(OAuthConstants.AUTHORIZATION_CODE, synNS);
-                serializeOAuthCommonParameters(authCode, getClientId(), getClientSecret(), getTokenURL());
+                serializeOAuthCommonParameters(authCode, getClientId(), getClientSecret(), getTokenURL(),
+                        null);
                 OMElement refreshToken = fac.createOMElement(OAuthConstants.OAUTH_REFRESH_TOKEN, synNS);
                 refreshToken.setText(getRefreshToken());
                 authCode.addChild(refreshToken);
@@ -431,7 +434,8 @@ public class HttpEndpoint extends Endpoint {
                 oauth.addChild(authCode);
             } else {
                 OMElement clientCredentials = fac.createOMElement(OAuthConstants.CLIENT_CREDENTIALS, synNS);
-                serializeOAuthCommonParameters(clientCredentials, getClientId(), getClientSecret(), getTokenURL());
+                serializeOAuthCommonParameters(clientCredentials, getClientId(), getClientSecret(), getTokenURL(),
+                        getAuthMode());
                 serializeOAuthRequestParameters(clientCredentials, getRequestParametersMap());
                 oauth.addChild(clientCredentials);
             }
@@ -614,6 +618,7 @@ public class HttpEndpoint extends Endpoint {
                 setClientId(handler.getClientId());
                 setClientSecret(handler.getClientSecret());
                 setTokenURL(handler.getTokenUrl());
+                setAuthMode(handler.getAuthMode());
                 setRequestParametersMap(handler.getRequestParametersMap());
             } else if (((OAuthConfiguredHTTPEndpoint) httpEndpoint)
                     .getOauthHandler() instanceof PasswordCredentialsHandler) {
@@ -657,9 +662,10 @@ public class HttpEndpoint extends Endpoint {
      * @param clientId         clientId used in OAuth config
      * @param clientSecret     clientSecret used in OAuth config
      * @param tokenURL         tokenURL used in OAuth config
+     * @param authMode         authentication mode used in OAuth config
      */
     private static void serializeOAuthCommonParameters(OMElement oauthCredentials, String clientId,
-                                                       String clientSecret, String tokenURL) {
+                                                       String clientSecret, String tokenURL, String authMode) {
 
         OMElement clientIdElement = fac.createOMElement(OAuthConstants.OAUTH_CLIENT_ID, synNS);
         clientIdElement.setText(clientId);
@@ -670,6 +676,11 @@ public class HttpEndpoint extends Endpoint {
         OMElement tokenUrlElement = fac.createOMElement(OAuthConstants.TOKEN_API_URL, synNS);
         tokenUrlElement.setText(tokenURL);
         oauthCredentials.addChild(tokenUrlElement);
+        if (!StringUtils.isEmpty(authMode)) {
+            OMElement authModeElement = fac.createOMElement(OAuthConstants.OAUTH_AUTHENTICATION_MODE, synNS);
+            authModeElement.setText(authMode);
+            oauthCredentials.addChild(authModeElement);
+        }
     }
 
     /**
@@ -692,4 +703,11 @@ public class HttpEndpoint extends Endpoint {
         return StringUtils.isNotBlank(refreshToken) && !"null".equals(refreshToken);
     }
 
+    public String getAuthMode() {
+        return authMode;
+    }
+
+    public void setAuthMode(String authMode) {
+        this.authMode = authMode;
+    }
 }
