@@ -414,7 +414,7 @@ public class HttpEndpoint extends Endpoint {
             if (isPasswordGrant()) {
                 OMElement passwordCredentials = fac.createOMElement(OAuthConstants.PASSWORD_CREDENTIALS, synNS);
                 serializeOAuthCommonParameters(passwordCredentials, getClientId(), getClientSecret(), getTokenURL(),
-                        null);
+                        getAuthMode());
                 OMElement username = fac.createOMElement(OAuthConstants.OAUTH_USERNAME, synNS);
                 username.setText(getUsername());
                 passwordCredentials.addChild(username);
@@ -426,7 +426,7 @@ public class HttpEndpoint extends Endpoint {
             } else if (isAuthorizationCodeGrant()) {
                 OMElement authCode = fac.createOMElement(OAuthConstants.AUTHORIZATION_CODE, synNS);
                 serializeOAuthCommonParameters(authCode, getClientId(), getClientSecret(), getTokenURL(),
-                        null);
+                        getAuthMode());
                 OMElement refreshToken = fac.createOMElement(OAuthConstants.OAUTH_REFRESH_TOKEN, synNS);
                 refreshToken.setText(getRefreshToken());
                 authCode.addChild(refreshToken);
