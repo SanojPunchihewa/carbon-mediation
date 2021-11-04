@@ -15,6 +15,9 @@
 --%>
 
 <%@ page import="org.apache.axiom.om.OMElement" %>
+<%@ page import="java.util.Arrays" %>
+<%@ page import="java.util.Map" %>
+<%@ page import="java.util.HashMap" %>
 <%@ page import="org.apache.synapse.config.xml.endpoints.TemplateSerializer" %>
 <%@ page import="org.apache.synapse.endpoints.Template" %>
 <%@ page import="org.wso2.carbon.endpoint.ui.endpoints.http.HttpEndpoint" %>
@@ -39,6 +42,15 @@
     String disabledErrorCodes = request.getParameter("disabledErrorCodes");
     String action = request.getParameter("actionSelect");
     String actionDuration = null;
+
+    String clientId = request.getParameter("clientId");
+    String clientSecret = request.getParameter("clientSecret");
+    String authMode = request.getParameter("authMode");
+    String refreshToken = request.getParameter("refreshToken");
+    String username = request.getParameter("username");
+    String password = request.getParameter("password");
+    String tokenURL = request.getParameter("tokenURL");
+    String requestParametersMap = request.getParameter("requestParametersMap");
     if (action != null && !action.equals("neverTimeout")) {
         actionDuration = request.getParameter("actionDuration");
     }
@@ -126,6 +138,49 @@
     	httpEndpoint.setProperties(properties);
     } else {
     	httpEndpoint.setProperties(null);
+    }
+    if (clientId != null) {
+        httpEndpoint.setClientId(clientId);
+    }
+    if (clientSecret != null) {
+        httpEndpoint.setClientSecret(clientSecret);
+    }
+    if (refreshToken != null) {
+        httpEndpoint.setRefreshToken(refreshToken);
+    }
+    if (authMode != null && !authMode.equals("null")) {
+        httpEndpoint.setAuthMode(authMode);
+    }
+    if (username != null) {
+        httpEndpoint.setUsername(username);
+    }
+    if (password != null) {
+        httpEndpoint.setPassword(password);
+    }
+    if (tokenURL != null) {
+        httpEndpoint.setTokenURL(tokenURL);
+    }
+    if (requestParametersMap !=null && !requestParametersMap.equals("null") && !requestParametersMap.isEmpty()) {
+       // remove enclosing braces
+       requestParametersMap = requestParametersMap.substring( 1, requestParametersMap.length() - 1 );
+       Map<String, String> map = new HashMap();
+
+       String[] arrParameters = requestParametersMap.split(",");
+       for (String tempParameterString : arrParameters) {
+
+           String[] arrTempParameter = tempParameterString
+                   .split("=");
+
+           if (arrTempParameter.length >= 2) {
+               String parameterKey = arrTempParameter[0];
+               String parameterValue = arrTempParameter[1];
+               map.put(parameterKey, parameterValue);
+           } else {
+               String parameterKey = arrTempParameter[0];
+               map.put(parameterKey, "");
+           }
+       }
+       httpEndpoint.setRequestParametersMap(map);
     }
 
     OMElement endpointElement = httpEndpoint.serialize(null);
