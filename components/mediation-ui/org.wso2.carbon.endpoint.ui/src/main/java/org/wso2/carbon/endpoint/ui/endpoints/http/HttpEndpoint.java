@@ -406,7 +406,7 @@ public class HttpEndpoint extends Endpoint {
         } else if (isHttpOptions()) {
             httpElement.addAttribute(fac.createOMAttribute("method", nullNS, "options"));
         }
-        if (!StringUtils.isEmpty(getClientId())) {
+        if (!StringUtils.isEmpty(getClientId()) && !"null".equals(getClientId())) {
             // oauth configuration
             OMElement authentication = fac.createOMElement(OAuthConstants.AUTHENTICATION, synNS);
             OMElement oauth = fac.createOMElement(OAuthConstants.OAUTH, synNS);
